@@ -48,6 +48,7 @@ func (s *Server) Run() error {
 	mux.HandleFunc("/create", s.Create)
 	mux.HandleFunc("/checkpoint", s.Checkpoint)
 	mux.HandleFunc("/healthCheck", s.HealthCheck)
+	mux.HandleFunc("/migratePod", s.migratePod)
 	server := &http.Server{Addr: s.config.ListenAddress, Handler: mux}
 
 	go func() {
