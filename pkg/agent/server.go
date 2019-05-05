@@ -9,8 +9,10 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"time"
+	"fmt"
 )
 
 const (
@@ -130,6 +132,8 @@ func checkpointContainerWithName() {
 func (s *Server) migratePod(w http.ResponseWriter, req *http.Request) {
 	containerId := req.FormValue("containerId")
 	destHost := req.FormValue("destHost")
+	fmt.Println(containerId)
+	fmt.Println(destHost)
 	ctx := context.Background()
 	cli, err := client.NewClientWithOpts(client.WithVersion("1.39"))
 	if err != nil {
@@ -139,5 +143,7 @@ func (s *Server) migratePod(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	w.Write([]byte("checkpointed " + destHost))
+	w.Write([]byte("checkpointed " + destHost + "\n"))
+	cmd := exec.Command("sudo", "scp", "-r", "/hone/qzy/checkpoint", "qzy@" + destHost + ":/home/qzy")
+	cmd.Run()
 }
