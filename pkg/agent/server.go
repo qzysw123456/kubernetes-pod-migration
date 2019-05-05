@@ -2,22 +2,14 @@ package agent
 
 import (
 	"context"
-	"flag"
-	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 	"io"
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"os/signal"
-	"path/filepath"
 	"time"
 )
 
@@ -136,61 +128,16 @@ func checkpointContainerWithName() {
 	}
 }
 func (s *Server) migratePod(w http.ResponseWriter, req *http.Request) {
-	var kubeconfig *string
-	if home := homeDir(); home != "" {
-		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-	} else {
-		kubeconfig = flag.String("kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-	flag.Parse()
-
-	// use the current context in kubeconfig
-	config, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+	containerId := req.FormValue("containerId")
+	destHost := req.FormValue("destHost")
+	ctx := context.Background()
+	cli, err := client.NewClientWithOpts(client.WithVersion("1.39"))
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
-
-	// create the clientset
-	clientset, err := kubernetes.NewForConfig(config)
+	err = cli.CheckpointCreate(ctx, containerId, types.CheckpointCreateOptions{"savedState", "/home/qzy/checkpoint", false})
 	if err != nil {
-		panic(err.Error())
+		panic(err)
 	}
-
-	desiredPod := req.FormValue("pod")
-	desiredNamespace := req.FormValue("namespace")
-	if len(desiredNamespace) == 0 {
-		desiredNamespace = "default"
-	}
-	desiredHost := req.FormValue("desHost")
-
-	var errVal error
-	pod, err := clientset.CoreV1().Pods(desiredNamespace).Get(desiredPod, metav1.GetOptions{})
-
-	if errors.IsNotFound(err) {
-		fmt.Printf("Pod %s in namespace %s not found\n", desiredPod, desiredNamespace)
-		//return errVal
-	} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
-		fmt.Printf("Error getting pod %s in namespace %s: %v\n",
-			desiredPod, desiredNamespace, statusError.ErrStatus.Message)
-		//return errVal
-	} else if err != nil {
-		panic(err.Error())
-		//return errVal
-	} else {
-		fmt.Printf("Found pod %s in namespace %s\n", desiredPod, desiredNamespace)
-		fmt.Println(pod.Status.ContainerStatuses[0].ContainerID)
-		//hostIP := pod.Status.HostIP
-	}
-	thisHost, _ := os.Hostname()
-	if errVal == nil {
-		cmd := exec.Command("scp", "-r", thisHost + ":/home/qzy/testK8s2", desiredHost + ":/home/qzy/")
-		cmd.Run()
-	}
-}
-
-func homeDir() string {
-	if h := os.Getenv("HOME"); h != "" {
-		return h
-	}
-	return os.Getenv("USERPROFILE") // windows
+	w.Write([]byte("checkpointed " + destHost))
 }
