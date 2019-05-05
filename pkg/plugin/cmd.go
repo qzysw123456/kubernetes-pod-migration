@@ -3,7 +3,9 @@ package plugin
 import (
 	"fmt"
 	"github.com/spf13/cobra"
+	"net/http"
 	"os"
+	"strings"
 
 	"flag"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -17,32 +19,32 @@ import (
 const (
 	example = `
 	# Checkpoint a Pod
-	kubectl checkpoint POD_NAME
-	kubectl checkpoint POD_NAME --namespace std
+	kubectl migrate POD_NAME destHost
+	kubectl migrate POD_NAME --namespace string destHost
 `
 	longDesc = `
-Checkpoint a pod with POD_NAME, leave all data in directory /checkpointData
+migrate POD_NAME to destHost
 `
 )
 
-type CheckpointArgs struct {
+type MigrateArgs struct {
 
 	// Pod select options
 	Namespace string
 	PodName   string
-
+	DestHost string
 }
 
 
 func NewPluginCmd() *cobra.Command {
-	var CRargs CheckpointArgs
+	var Margs MigrateArgs
 	cmd := &cobra.Command{
-		Use: "checkpoint [OPTIONS] POD_NAME",
-		Short:   "Checkpoint a Pod",
+		Use: "migrate [OPTIONS] POD_NAME destHost",
+		Short:   "migrate a Pod",
 		Long:    longDesc,
 		Example:	example,
 		Run: func(c *cobra.Command, args []string) {
-			if err := CRargs.Complete(c, args); err != nil {
+			if err := Margs.Complete(c, args); err != nil {
 				fmt.Println(err)
 			}
 			/*
@@ -53,27 +55,32 @@ func NewPluginCmd() *cobra.Command {
 				fmt.Println(err)
 			}
 			*/
-			if err := CRargs.Run(); err != nil {
+			if err := Margs.Run(); err != nil {
 				fmt.Println(err)
 			}
 		},
 	}
-	cmd.Flags().StringVar(&CRargs.Namespace, "namespace", "default",
+	cmd.Flags().StringVar(&Margs.Namespace, "namespace", "default",
 		"default namespace is \"default\"")
 	return cmd
 }
 
-func (a * CheckpointArgs) Complete(cmd *cobra.Command, args []string) error {
+func (a * MigrateArgs) Complete(cmd *cobra.Command, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("error pod not specified")
 	}
+	if len(args) == 1 {
+		return fmt.Errorf("destHost not specified")
+	}
+
 	a.PodName = args[0]
+	a.DestHost = args[1]
 	return nil
 }
 
 
 
-func (a * CheckpointArgs) Run() error {
+func (a * MigrateArgs) Run() error {
 	var kubeconfig *string
 	if home := homeDir(); home != "" {
 		kubeconfig = flag.String("kubeconfig", filepath.Join(home, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
@@ -107,11 +114,31 @@ func (a * CheckpointArgs) Run() error {
 	} else if err != nil {
 		panic(err.Error())
 		return errVal
-	} else {
-		fmt.Printf("Found pod %s in namespace %s\n", a.PodName, a.Namespace)
-		fmt.Println(pod.Status.ContainerStatuses[0].ContainerID)
-		//hostIP := pod.Status.HostIP
 	}
+
+	fmt.Printf("Found pod %s in namespace %s\n", a.PodName, a.Namespace)
+	fmt.Println(pod.Status.ContainerStatuses[0].ContainerID)
+
+	hostIP := pod.Status.HostIP
+	url := hostIP + ":10027/migratePod"
+	fmt.Println(url)
+	fmt.Println(pod.Status.ContainerStatuses[0].ContainerID)
+	fmt.Println(a.DestHost)
+
+	body := strings.NewReader("containerId=" + pod.Status.ContainerStatuses[0].ContainerID + "&" + "destHost=" + a.DestHost)
+	req, err := http.NewRequest("POST", url, body)
+
+	if err != nil {
+		// handle err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		// handle err
+	}
+	defer resp.Body.Close()
+
 	return nil
 }
 
