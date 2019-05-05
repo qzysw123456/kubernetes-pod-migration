@@ -116,16 +116,11 @@ func (a * MigrateArgs) Run() error {
 		return errVal
 	}
 
-	fmt.Printf("Found pod %s in namespace %s\n", a.PodName, a.Namespace)
-	fmt.Println(pod.Status.ContainerStatuses[0].ContainerID)
 
 	hostIP := pod.Status.HostIP
-	url := hostIP + ":10027/migratePod"
-	fmt.Println(url)
-	fmt.Println(pod.Status.ContainerStatuses[0].ContainerID)
-	fmt.Println(a.DestHost)
+	url := "http://" + hostIP + ":10027/migratePod"
 
-	body := strings.NewReader("containerId=" + pod.Status.ContainerStatuses[0].ContainerID + "&" + "destHost=" + a.DestHost)
+	body := strings.NewReader("containerId=" + strings.TrimPrefix(pod.Status.ContainerStatuses[0].ContainerID, "docker://") + "&" + "destHost=" + a.DestHost)
 	req, err := http.NewRequest("POST", url, body)
 
 	if err != nil {
@@ -138,6 +133,14 @@ func (a * MigrateArgs) Run() error {
 		// handle err
 	}
 	defer resp.Body.Close()
+
+	fmt.Println("now the host name is ")
+	fmt.Println(pod.Spec.NodeSelector["kubernetes.io/hostname"])
+
+	clientset.CoreV1().Pods(a.Namespace).Delete(a.PodName, &metav1.DeleteOptions{})
+	pod.Spec.NodeSelector["kubernetes.io/hostname"] = a.DestHost
+
+	clientset.CoreV1().Pods(a.Namespace).Create(pod)
 
 	return nil
 }
