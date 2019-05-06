@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"os/exec"
 	"time"
 
 	apiv1 "k8s.io/api/core/v1"
@@ -165,6 +166,9 @@ func (a * MigrateArgs) Run() error {
 
 	newPod.Spec.NodeSelector = make(map[string]string)
 	newPod.Spec.NodeSelector["kubernetes.io/hostname"] = a.DestHost
+
+	cmd := exec.Command("sudo", "rm", "/home/qzy/indeed")
+	cmd.Run()
 
 	_, err = clientset.CoreV1().Pods(a.Namespace).Create(newPod)
 	if err != nil {
