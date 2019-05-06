@@ -136,8 +136,7 @@ func (a * MigrateArgs) Run() error {
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("now the host name is ")
-	fmt.Println(pod.Spec.NodeSelector["kubernetes.io/hostname"])
+	fmt.Println(resp.Body)
 
 
 	err = clientset.CoreV1().Pods(a.Namespace).Delete(a.PodName, &metav1.DeleteOptions{})
@@ -171,6 +170,8 @@ func (a * MigrateArgs) Run() error {
 	if err != nil {
 		fmt.Println("create error")
 	}
+
+
 
 	return nil
 }

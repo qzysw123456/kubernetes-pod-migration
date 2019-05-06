@@ -139,11 +139,15 @@ func (s *Server) migratePod(w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+
+	cmd := exec.Command("sudo", "rm", "-rf", "/home/qzy/checkpoint/savedState")
+	cmd.Run()
+
 	err = cli.CheckpointCreate(ctx, containerId, types.CheckpointCreateOptions{"savedState", "/home/qzy/checkpoint", true})
 	if err != nil {
 		panic(err)
 	}
 	w.Write([]byte("checkpointed " + destHost + "\n"))
-	cmd := exec.Command("sudo", "scp", "-r", "/home/qzy/checkpoint", "qzy@" + destHost + ":/home/qzy")
+	cmd = exec.Command("sudo", "scp", "-r", "/home/qzy/checkpoint", "qzy@" + destHost + ":/home/qzy")
 	cmd.Run()
 }
