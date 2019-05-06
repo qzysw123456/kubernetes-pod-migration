@@ -120,7 +120,13 @@ func (a * MigrateArgs) Run() error {
 	}
 
 
+
 	hostIP := pod.Status.HostIP
+
+	toclear(hostIP)
+	localhost, _ := os.Hostname()
+	toclear(localhost)
+
 	url := "http://" + hostIP + ":10027/migratePod"
 
 	body := strings.NewReader("containerId=" + strings.TrimPrefix(pod.Status.ContainerStatuses[0].ContainerID, "docker://") + "&" + "destHost=" + a.DestHost)
@@ -136,9 +142,6 @@ func (a * MigrateArgs) Run() error {
 		// handle err
 	}
 	defer resp.Body.Close()
-
-	fmt.Println(resp.Body)
-
 
 	err = clientset.CoreV1().Pods(a.Namespace).Delete(a.PodName, &metav1.DeleteOptions{})
 	if err != nil {
@@ -187,3 +190,20 @@ func homeDir() string {
 	return os.Getenv("USERPROFILE") // windows
 }
 
+func toclear(hostIP string) {
+	url := "http://" + hostIP + ":10027/clear"
+
+	body := strings.NewReader("")
+	req, err := http.NewRequest("POST", url, body)
+
+	if err != nil {
+		// handle err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		// handle err
+	}
+	defer resp.Body.Close()
+}

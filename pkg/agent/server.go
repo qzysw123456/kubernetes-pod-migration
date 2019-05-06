@@ -43,6 +43,7 @@ func (s *Server) Run() error {
 	mux.HandleFunc("/checkpoint", s.Checkpoint)
 	mux.HandleFunc("/healthCheck", s.HealthCheck)
 	mux.HandleFunc("/migratePod", s.migratePod)
+	mux.HandleFunc("/clear", s.clear)
 	server := &http.Server{Addr: s.config.ListenAddress, Handler: mux}
 
 	go func() {
@@ -140,14 +141,16 @@ func (s *Server) migratePod(w http.ResponseWriter, req *http.Request) {
 		panic(err)
 	}
 
-	cmd := exec.Command("sudo", "rm", "-rf", "/home/qzy/checkpoint/savedState")
-	cmd.Run()
-
 	err = cli.CheckpointCreate(ctx, containerId, types.CheckpointCreateOptions{"savedState", "/home/qzy/checkpoint", true})
 	if err != nil {
 		panic(err)
 	}
 	w.Write([]byte("checkpointed " + destHost + "\n"))
-	cmd = exec.Command("sudo", "scp", "-r", "/home/qzy/checkpoint", "qzy@" + destHost + ":/home/qzy")
+	cmd := exec.Command("sudo", "scp", "-r", "/home/qzy/checkpoint", "qzy@" + destHost + ":/home/qzy")
+	cmd.Run()
+}
+
+func (s *Server) clear(w http.ResponseWriter, req *http.Request) {
+	cmd := exec.Command("sudo", "rm", "-rf", "/home/qzy/checkpoint/savedState")
 	cmd.Run()
 }
