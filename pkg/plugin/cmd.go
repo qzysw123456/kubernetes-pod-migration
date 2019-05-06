@@ -1,18 +1,20 @@
 package plugin
 
 import (
+	"flag"
 	"fmt"
 	"github.com/spf13/cobra"
-	"net/http"
-	"os"
-	"strings"
-
-	"flag"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"time"
+
+	apiv1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
+	"net/http"
+	"os"
 	"path/filepath"
+	"strings"
 )
 
 
@@ -137,10 +139,38 @@ func (a * MigrateArgs) Run() error {
 	fmt.Println("now the host name is ")
 	fmt.Println(pod.Spec.NodeSelector["kubernetes.io/hostname"])
 
-	clientset.CoreV1().Pods(a.Namespace).Delete(a.PodName, &metav1.DeleteOptions{})
-	pod.Spec.NodeSelector["kubernetes.io/hostname"] = a.DestHost
 
-	clientset.CoreV1().Pods(a.Namespace).Create(pod)
+	err = clientset.CoreV1().Pods(a.Namespace).Delete(a.PodName, &metav1.DeleteOptions{})
+	if err != nil {
+		fmt.Println("delete error")
+	}
+
+	for ; err == nil; _, err = clientset.CoreV1().Pods("default").Get(pod.Name, metav1.GetOptions{}) {
+		time.Sleep(1 * time.Second)
+	}
+
+	newPod := &apiv1.Pod{
+		TypeMeta: metav1.TypeMeta{"Pod", "v1"},
+		ObjectMeta: metav1.ObjectMeta{Name: pod.ObjectMeta.Name},
+	}
+
+	newPod.Spec = apiv1.PodSpec{
+		Containers: make([]apiv1.Container, len(pod.Spec.Containers)),
+	}
+
+	for i := 0; i < len(pod.Spec.Containers); i++ {
+		newPod.Spec.Containers[i].Name = pod.Spec.Containers[i].Name
+		newPod.Spec.Containers[i].Image = pod.Spec.Containers[i].Image
+		newPod.Spec.Containers[i].Command = pod.Spec.Containers[i].Command
+	}
+
+	newPod.Spec.NodeSelector = make(map[string]string)
+	newPod.Spec.NodeSelector["kubernetes.io/hostname"] = a.DestHost
+
+	_, err = clientset.CoreV1().Pods(a.Namespace).Create(newPod)
+	if err != nil {
+		fmt.Println("create error")
+	}
 
 	return nil
 }
