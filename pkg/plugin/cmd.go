@@ -30,6 +30,8 @@ migrate POD_NAME to destHost
 `
 )
 
+
+
 type MigrateArgs struct {
 
 	// Pod select options
@@ -123,9 +125,12 @@ func (a * MigrateArgs) Run() error {
 
 	hostIP := pod.Status.HostIP
 
-	toclear(hostIP)
-	localhost, _ := os.Hostname()
-	toclear(localhost)
+
+	//TODO: need config file for daemon set
+	var hostAddrs = [...]string{"10.168.0.27", "10.168.0.28"}
+	for _, addr := range hostAddrs {
+		toclear(addr)
+	}
 
 	url := "http://" + hostIP + ":10027/migratePod"
 

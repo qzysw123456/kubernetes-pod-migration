@@ -153,4 +153,6 @@ func (s *Server) migratePod(w http.ResponseWriter, req *http.Request) {
 func (s *Server) clear(w http.ResponseWriter, req *http.Request) {
 	cmd := exec.Command("sudo", "rm", "-rf", "/home/qzy/checkpoint/savedState")
 	cmd.Run()
+	cmd = exec.Command("sudo", "rm", "/home/qzy/indeed")
+	cmd.Run()
 }
