@@ -1,14 +1,16 @@
 # kubernetes-pod-migration
 
-## reference 
-https://github.com/kubernetes/sample-cli-plugin
+## Kubernetes pod migration tool 
+It is a simple kubectl plugin that can live migrate a pod from a host to another.
+
+At this point of time, although docker has already supported checkpoint/restore feature, Kubernetes doesn't provide any support, and (likely) won't support in the future. This is a experimental attempt that, without extending Kubernetes' container runtime interface, made Kubernetes support docker checkpoint/restore in a very easy way.
 
 ## design
-This project should contain 3 parts:
+This project contains 3 parts:
 
-A plugin which extend the kubectl, accept command like `kubectl plugin checkpoint POD_NAME`, this command should get the node address where the pod is indeed running, then send request to a helper daemon.
+A plugin which extend the kubectl, accept command `kubectl migrate [NAMESPACE] POD_NAME DestHost`. `POD_NAME` is the pod you want to migrate, and `DestHost` is the desired host you want the pod migrate to.
 
-A set of helper daemon running on every node. The helper daemon should be able receive the request sent from plugin, and know the pod.Spec. It utilize docker checkpoint feature so that it can checkpoint the containers. Attention, CRIU should be installed in every host machine to help this procedure.
+A daemon set of agents running on every node. The helper daemon receives the request sent from plugin, checkpoint all containers inside a pod, and transfer the saved state to destination host.
 
-A slightly modified Kubectl, a modification should in (docker-shim.go), thus the kubelet can start a container from saved state. Although this interface violates CRI, which works for every container runtime, but in order to support this docker feature, it is a effective way to just extend the docker-shim. *Alternative* Prestart and PostStop Hook https://github.com/opencontainers/runtime-spec/blob/master/config.md#prestart
+A slightly modified Kubectl(<10 lines of code), which enables a pod start its container from saved state.
 
