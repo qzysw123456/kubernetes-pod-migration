@@ -137,7 +137,7 @@ func (a * MigrateArgs) Run() error {
 
 	//talk to agent running the pod, and perform the checkpoint for all containers inside the pod
 	//the request is send via http
-	url := "http://" + hostIP + ":10027/migratePod"
+	url := "http://" + hostIP + ":15213/migratePod"
 
 	body := strings.NewReader("containerId=" + strings.TrimPrefix(pod.Status.ContainerStatuses[0].ContainerID, "docker://") + "&" + "destHost=" + a.DestHost)
 	req, err := http.NewRequest("POST", url, body)
@@ -207,7 +207,7 @@ func homeDir() string {
 }
 
 func toclear(hostIP string) {
-	url := "http://" + hostIP + ":10027/clear"
+	url := "http://" + hostIP + ":15213/clear"
 
 	body := strings.NewReader("")
 	req, err := http.NewRequest("POST", url, body)
